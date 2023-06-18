@@ -28,7 +28,11 @@ variable "private_subnet_cidr" {
   default     = ["10.0.1.0/24","10.0.2.0/24","10.0.11.0/24","10.0.12.0/24"]
 }
 
-
+variable "public_route_table" {
+  description = "The CIDR Block for public subnet route table"
+  type = string
+  default = "0.0.0.0/0"
+}
 #Public Subnet ルートテーブル
 #variable "route_tables_pbulic" {
 #  description = "The rules for each route table"

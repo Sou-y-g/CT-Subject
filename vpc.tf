@@ -17,8 +17,8 @@ resource "aws_subnet" "public" {
   vpc_id            = aws_vpc.main.id
   cidr_block        = var.public_subnet_cidr[count.index]
   availability_zone = var.availability_zones[count.index]
-
   map_public_ip_on_launch = true
+
   tags = {
     Name = "${var.tag_prefix}public-subnet-${count.index + 1}"
   }
@@ -29,13 +29,32 @@ resource "aws_subnet" "private" {
   vpc_id            = aws_vpc.main.id
   cidr_block        = var.private_subnet_cidr[count.index]
   availability_zone       = count.index < 2 ? var.availability_zones[0] : var.availability_zones[1]
-
   map_public_ip_on_launch = false
+
   tags = {
     Name = "${var.tag_prefix}private-subnet-${count.index + 1}"
   }
 }
 
-resource "aws_route_table" "public-rt" {
-  destination_cidr_block    = "0.0.0.0/24"
+#Route table
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name = "${var.tag_prefix}public-rt"
+  }
+}
+
+#Route
+resource "aws_route" "public" {
+  destination_cidr_block = var.public_route_table
+  route_table_id = "${aws_route_table.public.id}"
+  gateway_id = "${aws_internet_gateway.igw.id}"
+}
+
+#Route association
+resource "aws_route_table_association" "public" {
+  count          = length(var.public_subnet_cidr)
+  subnet_id      = aws_subnet.public[count.index].id
+  route_table_id = aws_route_table.public.id
 }
