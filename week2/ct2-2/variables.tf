@@ -50,3 +50,8 @@ variable "tag_prefix" {
   description = "Prefix for the tags"
   default     = "CloudTech-2-2-"
 }
+
+variable "key_name" {
+  description = "EC2 key"
+  default = "ct_key"
+}
