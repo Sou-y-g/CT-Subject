@@ -107,3 +107,7 @@ resource "aws_route_table_association" "subnet2" {
   subnet_id = aws_subnet.private2.id
   route_table_id = aws_route_table.subnet2.id
 }
+
+######################################################################################
+# EC2
+######################################################################################
