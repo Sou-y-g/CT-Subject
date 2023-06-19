@@ -34,10 +34,16 @@ variable "private2_subnet_cidr" {
   default     = "172.18.1.0/24"
 }
 
-variable "public_route_table" {
-  description = "The CIDR Block for public subnet route table"
+variable "subnet1_route_table" {
+  description = "The CIDR Block for private subnet route table"
   type = string
-  default = "0.0.0.0/0"
+  default = "172.18.0.0/16"
+}
+
+variable "subnet2_route_table" {
+  description = "The CIDR Block for private subnet route table"
+  type = string
+  default = "10.0.0.0/16"
 }
 
 variable "tag_prefix" {
