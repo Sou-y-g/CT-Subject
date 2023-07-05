@@ -1,6 +1,7 @@
 ######################################################################################
 ## Network 
 ######################################################################################
+#VPC1作成
 resource "aws_vpc" "vpc1" {
   cidr_block = var.vpc1_cidr
 
@@ -9,6 +10,7 @@ resource "aws_vpc" "vpc1" {
   }
 }
 
+#VPC1のサブネット
 resource "aws_subnet" "private1" {
   vpc_id = aws_vpc.vpc1.id
   cidr_block = var.private1_subnet_cidr
@@ -20,6 +22,7 @@ resource "aws_subnet" "private1" {
   }
 }
 
+#VPC2作成
 resource "aws_vpc" "vpc2" {
   cidr_block = var.vpc2_cidr
 
@@ -28,6 +31,7 @@ resource "aws_vpc" "vpc2" {
   }
 }
 
+#VPC1のサブネット
 resource "aws_subnet" "private2" {
   vpc_id = aws_vpc.vpc2.id
   cidr_block = var.private2_subnet_cidr
@@ -39,9 +43,10 @@ resource "aws_subnet" "private2" {
   }
 }
 
+#VPC peering作成
 resource "aws_vpc_peering_connection" "peering" {
-  peer_vpc_id = aws_vpc.vpc2.id
   vpc_id = aws_vpc.vpc1.id
+  peer_vpc_id = aws_vpc.vpc2.id
   auto_accept = true
 
   tags = {
@@ -52,7 +57,7 @@ resource "aws_vpc_peering_connection" "peering" {
 ######################################################################################
 # Route table
 ######################################################################################
-#Route table for subnet1
+#subnet1のルートテーブル
 resource "aws_route_table" "subnet1" {
   vpc_id = aws_vpc.vpc1.id
 
@@ -61,20 +66,20 @@ resource "aws_route_table" "subnet1" {
   }
 }
 
-#Route
+#ルート
 resource "aws_route" "subnet1" {
   destination_cidr_block = var.subnet1_route_table
   route_table_id = aws_route_table.subnet1.id
   vpc_peering_connection_id = aws_vpc_peering_connection.peering.id
 }
 
-#Route association
+#ルートの割り当て
 resource "aws_route_table_association" "subnet1" {
   subnet_id = aws_subnet.private1.id
   route_table_id = aws_route_table.subnet1.id
 }
 
-#Route table for subnet2
+#subnet2のルートテーブル
 resource "aws_route_table" "subnet2" {
   vpc_id = aws_vpc.vpc2.id
 
@@ -83,14 +88,14 @@ resource "aws_route_table" "subnet2" {
   }
 }
 
-#Route
+#ルート
 resource "aws_route" "subnet2" {
   destination_cidr_block = var.subnet2_route_table
   route_table_id = aws_route_table.subnet2.id
   vpc_peering_connection_id = aws_vpc_peering_connection.peering.id
 }
 
-#Route association
+#ルートの割り当て
 resource "aws_route_table_association" "subnet2" {
   subnet_id = aws_subnet.private2.id
   route_table_id = aws_route_table.subnet2.id
@@ -205,7 +210,7 @@ resource "aws_security_group_rule" "eic_to_ec2_in" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    source_security_group_id = aws_security_group.sg_eic.id #送信元がsourceで引数として宛先のsecurity group idが必要
+    source_security_group_id = aws_security_group.sg_eic.id
     security_group_id = aws_security_group.eic_to_ec2.id
 }
 
@@ -214,7 +219,7 @@ resource "aws_security_group_rule" "eic_to_ec2_out" {
     from_port   = 0
     to_port     = 65535
     protocol    = "tcp"
-    source_security_group_id = aws_security_group.sg_eic.id #送信元がsourceで引数として宛先のsecurity group idが必要
+    source_security_group_id = aws_security_group.sg_eic.id
     security_group_id = aws_security_group.eic_to_ec2.id
 }
 

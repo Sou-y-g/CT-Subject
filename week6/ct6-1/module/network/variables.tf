@@ -1,0 +1,9 @@
+variable "tag" {}
+variable "az-1a" {}
+variable "az-1c" {}
+variable "vpc_cidr" {}
+variable "public_cidr" {}
+variable "private1_cidr" {}
+variable "private2_cidr" {}
+variable "private3_cidr" {}
+variable "all_cidr" {}

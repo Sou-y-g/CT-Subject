@@ -1,0 +1,9 @@
+variable "vpc_id" {}
+variable "tag" {}
+variable "az-1a" {}
+variable "az-1c" {}
+variable "private1_id" {}
+variable "private2_id" {}
+variable "private3_id" {}
+variable "private1_cidr" {}
+variable "all_cidr" {}
