@@ -27,7 +27,6 @@ resource "aws_security_group" "sg_eic" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    #var.vpc_cidrは不要なはず
     cidr_blocks = [var.vpc_cidr ,local.allowed-myip]
   }
 
