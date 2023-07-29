@@ -1,0 +1,11 @@
+body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    background-color: #9eb2c2;
+}
+
+.center p {
+    font-size: 3em; 
+}
+
