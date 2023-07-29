@@ -9,4 +9,3 @@ variable "vpc_id" {}
 variable "vpc_cidr" {}
 variable "private_cidr" {}
 variable "private_id" {}
-variable "all_cidr" {}

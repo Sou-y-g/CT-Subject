@@ -6,7 +6,6 @@ module "network" {
   az           = var.az
   vpc_cidr     = var.vpc_cidr
   private_cidr = var.private_cidr
-  all_cidr     = var.all
 }
 
 module "ec2" {
@@ -19,5 +18,4 @@ module "ec2" {
   az           = var.az
   vpc_cidr     = var.vpc_cidr
   private_cidr = var.private_cidr
-  all_cidr     = var.all
 }

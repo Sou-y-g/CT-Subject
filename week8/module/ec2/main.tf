@@ -10,7 +10,7 @@ resource "aws_security_group" "sg_ec2" {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = [var.all_cidr]
+    cidr_blocks = [var.vpc_cidr]
   }
 
   tags = {
