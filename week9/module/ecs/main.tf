@@ -116,6 +116,7 @@ resource "aws_ecs_task_definition" "task_definition" {
   memory                   = "512"
   network_mode             = "bridge"
   requires_compatibilities = ["EC2"]
+  execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
 
   container_definitions = jsonencode([
     {
@@ -177,6 +178,61 @@ resource "aws_iam_instance_profile" "ec2-role" {
   name = "ecs-instance-profile"
   role = data.aws_iam_role.ec2-role.name
 }
+
+# タスク定義ロール
+# AssumeRole
+data "aws_iam_policy_document" "ecs_assume_role_policy" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["ecs-tasks.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "ecs_task_execution_role" {
+  name               = "ecs_task_execution_role"
+  assume_role_policy = data.aws_iam_policy_document.ecs_assume_role_policy.json
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy_attachment" {
+  role       = aws_iam_role.ecs_task_execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+## ECRからイメージを取得するためのRole
+#data "aws_iam_policy_document" "ecr_policy" {
+#  statement {
+#    sid    = "ECRPermissions"
+#    effect = "Allow"
+#
+#    actions = [
+#      "ecr:GetAuthorizationToken",
+#      "ecr:BatchCheckLayerAvailability",
+#      "ecr:GetDownloadUrlForLayer",
+#      "ecr:GetRepositoryPolicy",
+#      "ecr:DescribeRepositories",
+#      "ecr:ListImages",
+#      "ecr:DescribeImages",
+#      "ecr:BatchGetImage",
+#    ]
+#
+#    resources = ["*"]
+#  }
+#}
+#
+#resource "aws_iam_policy" "ecr_policy" {
+#  name        = "ecr_policy"
+#  description = "Policy to allow ECS to pull from ECR"
+#  policy      = data.aws_iam_policy_document.ecr_policy.json
+#}
+#
+#resource "aws_iam_role_policy_attachment" "ecr_policy_attachment" {
+#  role       = aws_iam_role.ecs_task_execution_role.name
+#  policy_arn = aws_iam_policy.ecr_policy.arn
+#}
 
 #################################################
 # ECR
