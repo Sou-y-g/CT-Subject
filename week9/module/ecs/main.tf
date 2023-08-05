@@ -111,7 +111,7 @@ resource "aws_ecs_cluster" "cluster" {
 
 # タスク定義
 resource "aws_ecs_task_definition" "task_definition" {
-  family                   = "${var.tag}-family"
+  family                   = "${var.tag}-nginx"
   cpu                      = "256"
   memory                   = "512"
   network_mode             = "bridge"
@@ -122,6 +122,7 @@ resource "aws_ecs_task_definition" "task_definition" {
     {
       "name" : "${var.tag}-task-definitions",
       "image" : "nginx:latest",
+      "image": "194641379830.dkr.ecr.ap-northeast-1.amazonaws.com/nginx:latest",
       "essential" : true,
       "portMappings" : [
         {
