@@ -1,6 +1,3 @@
-######################################################################################
-# Security Group
-######################################################################################
 ## get my ip
 data "http" "ifconfig" {
   url = "http://ipv4.icanhazip.com/"
@@ -16,28 +13,8 @@ locals {
 }
 
 ####################################################################
-# EIC security group
+# security group
 ####################################################################
-# EIC Endpointのセキュリティグループ
-resource "aws_security_group" "sg_eic_endpoint" {
-  name   = "for EIC Endpoint"
-  vpc_id = var.vpc_id
-
-  tags = {
-    Name = "${var.tag}-eic-endpoint"
-  }
-}
-
-# EC2へのアウトバウンド
-resource "aws_security_group_rule" "sg_eic_endpoint" {
-  type              = "egress"
-  from_port         = 22
-  to_port           = 22
-  protocol          = "tcp"
-  security_group_id = aws_security_group.sg_eic_endpoint.id
-  source_security_group_id = aws_security_group.sg_ec2.id
-  }
-
 # EC2のセキュリティグループ
 resource "aws_security_group" "sg_ec2" {
   name   = "for EC2"
@@ -47,16 +24,6 @@ resource "aws_security_group" "sg_ec2" {
     Name = "${var.tag}-sg-ec2"
   }
 }
-
-# EIC Endpointからのインバウンド
-resource "aws_security_group_rule" "sg_ec2_in" {
-  type              = "ingress"
-  from_port         = 22
-  to_port           = 22
-  protocol          = "tcp"
-  security_group_id = aws_security_group.sg_ec2.id
-  source_security_group_id = aws_security_group.sg_eic_endpoint.id
-  }
 
 # myipからのssh許可
 resource "aws_security_group_rule" "sg_ec2_ssh_in" {
@@ -89,24 +56,12 @@ resource "aws_security_group_rule" "sg_ec2_out" {
   }
 
 ######################################################################################
-# EC2 Instance Connect Endpoint
-######################################################################################
-# EIC 作成
-resource "aws_ec2_instance_connect_endpoint" "eic" {
-  subnet_id          = var.public_id
-  security_group_ids = [aws_security_group.sg_eic_endpoint.id]
-
-  tags = {
-    Name = "${var.tag}-eic"
-  }
-}
-
-######################################################################################
 # ECS
 ######################################################################################
 # クラスター
 resource "aws_ecs_cluster" "cluster" {
   name = "${var.tag}-ecs-cluster"
+}
 
 # タスク定義
 resource "aws_ecs_task_definition" "task_definition" {
@@ -115,7 +70,7 @@ resource "aws_ecs_task_definition" "task_definition" {
   memory                   = "512"
   network_mode             = "bridge"
   requires_compatibilities = ["EC2"]
-  execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
+  execution_role_arn = var.ecs_task_execution_role
   runtime_platform {
     operating_system_family = "LINUX"
     cpu_architecture = "X86_64"
@@ -124,7 +79,8 @@ resource "aws_ecs_task_definition" "task_definition" {
   container_definitions = jsonencode([
     {
       "name" : "${var.tag}-task-definitions",
-      "image": "194641379830.dkr.ecr.ap-northeast-1.amazonaws.com/nginx:latest",
+      #"image": "194641379830.dkr.ecr.ap-northeast-1.amazonaws.com/nginx:latest",
+      "image": "nginx",
       "essential" : true,
       "logConfiguration": {
         "logDriver": "awslogs",
@@ -152,6 +108,8 @@ resource "aws_ecs_service" "nginx" {
   task_definition = aws_ecs_task_definition.task_definition.arn
   desired_count   = 1
   launch_type     = "EC2"
+  deployment_minimum_healthy_percent = 50
+
 }
 
 # ホストインスタンス
@@ -162,7 +120,7 @@ resource "aws_instance" "ecs_instance" {
   associate_public_ip_address = true
   key_name                    = var.key_name
   vpc_security_group_ids      = [aws_security_group.sg_ec2.id]
-  iam_instance_profile        = aws_iam_instance_profile.ecs_instance_profile.name
+  iam_instance_profile        = var.ecs_instance_profile
 
   user_data = <<-EOF
               #!/bin/bash
@@ -190,79 +148,4 @@ resource "aws_ecr_repository" "ecr" {
   tags = {
     Name = "${var.tag}-ecr"
   }
-}
-
-#################################################
-# IAM role
-#################################################
-# ECSタスク実行ロール
-# AssumeRole
-resource "aws_iam_role" "ecs_task_execution_role" {
-  name = "ecs_task_execution_role"
-  assume_role_policy = data.aws_iam_policy_document.ecs_assume_role_policy.json
-}
-
-data "aws_iam_policy_document" "ecs_assume_role_policy" {
-  statement {
-    actions = ["sts:AssumeRole"]
-
-    principals {
-      type        = "Service"
-      identifiers = ["ecs-tasks.amazonaws.com"]
-    }
-  }
-}
-
-# ECSTaskExecutionRole
-data "aws_iam_policy" "ecs_task_execution_policy" {
-  arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-}
-
-# ECSTaskExecutionRoleをECSタスク実行ロールにアタッチ
-resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy_attachment" {
-  role       = aws_iam_role.ecs_task_execution_role.name
-  policy_arn = data.aws_iam_policy.ecs_task_execution_policy.arn
-}
-
-# EC2 インスタンスプロファイル
-resource "aws_iam_instance_profile" "ecs_instance_profile" {
-  name = "ecs_instance_profile"
-  role = aws_iam_role.ecs_ec2_role.name
-}
-
-# EC2 IAM Role
-resource "aws_iam_role" "ecs_ec2_role" {
-  name = "ecs_ec2_role"
-  assume_role_policy = data.aws_iam_policy_document.ecs_ec2_assume_role_policy.json
-}
-
-data "aws_iam_policy_document" "ecs_ec2_assume_role_policy" {
-  statement {
-    actions = ["sts:AssumeRole"]
-
-    principals {
-      type        = "Service"
-      identifiers = ["ec2.amazonaws.com"]
-    }
-  }
-}
-
-# AmazonEC2ContainerServiceforEC2Roleポリシー
-data "aws_iam_policy" "ecs_ec2_role_policy" {
-  arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
-}
-
-# AmazonEC2ContainerServiceforEC2RoleポリシーをEC2用Roleにアタッチ
-resource "aws_iam_role_policy_attachment" "ecs_ec2_role_policy_attachment" {
-  role       = aws_iam_role.ecs_ec2_role.name
-  policy_arn = data.aws_iam_policy.ecs_ec2_role_policy.arn
-}
-
-
-#################################################
-# CloudWatch Logs
-#################################################
-resource "aws_cloudwatch_log_group" "cwlog" {
-  name = "/ecs/app"
-  retention_in_days = 30
 }

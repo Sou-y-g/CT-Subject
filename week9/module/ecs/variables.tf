@@ -9,3 +9,5 @@ variable "tag" {}
 variable "az" {}
 variable "vpc_cidr" {}
 variable "all_cidr" {}
+variable "ecs_instance_profile" {}
+variable "ecs_task_execution_role" {}
