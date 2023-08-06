@@ -107,7 +107,6 @@ resource "aws_ec2_instance_connect_endpoint" "eic" {
 # クラスター
 resource "aws_ecs_cluster" "cluster" {
   name = "${var.tag}-ecs-cluster"
-}
 
 # タスク定義
 resource "aws_ecs_task_definition" "task_definition" {
@@ -117,13 +116,24 @@ resource "aws_ecs_task_definition" "task_definition" {
   network_mode             = "bridge"
   requires_compatibilities = ["EC2"]
   execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
+  runtime_platform {
+    operating_system_family = "LINUX"
+    cpu_architecture = "X86_64"
+  }
 
   container_definitions = jsonencode([
     {
       "name" : "${var.tag}-task-definitions",
-      "image" : "nginx:latest",
       "image": "194641379830.dkr.ecr.ap-northeast-1.amazonaws.com/nginx:latest",
       "essential" : true,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-region": "ap-northeast-1",
+          "awslogs-stream-prefix": "app",
+          "awslogs-group": "/ecs/app"
+        }
+      }
       "portMappings" : [
         {
           "containerPort" : 80
@@ -152,7 +162,7 @@ resource "aws_instance" "ecs_instance" {
   associate_public_ip_address = true
   key_name                    = var.key_name
   vpc_security_group_ids      = [aws_security_group.sg_ec2.id]
-  iam_instance_profile        = aws_iam_instance_profile.ec2-role.name
+  iam_instance_profile        = aws_iam_instance_profile.ecs_instance_profile.name
 
   user_data = <<-EOF
               #!/bin/bash
@@ -165,75 +175,6 @@ resource "aws_instance" "ecs_instance" {
 
   depends_on = [aws_ecs_service.nginx]
 }
-
-#################################################
-# IAM role
-#################################################
-# ec2用のrole
-data "aws_iam_role" "ec2-role" {
-  name = "ecsInstanceRole"
-}
-
-# EC2 IAM Role
-resource "aws_iam_instance_profile" "ec2-role" {
-  name = "ecs-instance-profile"
-  role = data.aws_iam_role.ec2-role.name
-}
-
-# タスク定義ロール
-# AssumeRole
-data "aws_iam_policy_document" "ecs_assume_role_policy" {
-  statement {
-    actions = ["sts:AssumeRole"]
-
-    principals {
-      type        = "Service"
-      identifiers = ["ecs-tasks.amazonaws.com"]
-    }
-  }
-}
-
-resource "aws_iam_role" "ecs_task_execution_role" {
-  name               = "ecs_task_execution_role"
-  assume_role_policy = data.aws_iam_policy_document.ecs_assume_role_policy.json
-}
-
-resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy_attachment" {
-  role       = aws_iam_role.ecs_task_execution_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-}
-
-## ECRからイメージを取得するためのRole
-#data "aws_iam_policy_document" "ecr_policy" {
-#  statement {
-#    sid    = "ECRPermissions"
-#    effect = "Allow"
-#
-#    actions = [
-#      "ecr:GetAuthorizationToken",
-#      "ecr:BatchCheckLayerAvailability",
-#      "ecr:GetDownloadUrlForLayer",
-#      "ecr:GetRepositoryPolicy",
-#      "ecr:DescribeRepositories",
-#      "ecr:ListImages",
-#      "ecr:DescribeImages",
-#      "ecr:BatchGetImage",
-#    ]
-#
-#    resources = ["*"]
-#  }
-#}
-#
-#resource "aws_iam_policy" "ecr_policy" {
-#  name        = "ecr_policy"
-#  description = "Policy to allow ECS to pull from ECR"
-#  policy      = data.aws_iam_policy_document.ecr_policy.json
-#}
-#
-#resource "aws_iam_role_policy_attachment" "ecr_policy_attachment" {
-#  role       = aws_iam_role.ecs_task_execution_role.name
-#  policy_arn = aws_iam_policy.ecr_policy.arn
-#}
 
 #################################################
 # ECR
@@ -249,4 +190,79 @@ resource "aws_ecr_repository" "ecr" {
   tags = {
     Name = "${var.tag}-ecr"
   }
+}
+
+#################################################
+# IAM role
+#################################################
+# ECSタスク実行ロール
+# AssumeRole
+resource "aws_iam_role" "ecs_task_execution_role" {
+  name = "ecs_task_execution_role"
+  assume_role_policy = data.aws_iam_policy_document.ecs_assume_role_policy.json
+}
+
+data "aws_iam_policy_document" "ecs_assume_role_policy" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["ecs-tasks.amazonaws.com"]
+    }
+  }
+}
+
+# ECSTaskExecutionRole
+data "aws_iam_policy" "ecs_task_execution_policy" {
+  arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+# ECSTaskExecutionRoleをECSタスク実行ロールにアタッチ
+resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy_attachment" {
+  role       = aws_iam_role.ecs_task_execution_role.name
+  policy_arn = data.aws_iam_policy.ecs_task_execution_policy.arn
+}
+
+# EC2 インスタンスプロファイル
+resource "aws_iam_instance_profile" "ecs_instance_profile" {
+  name = "ecs_instance_profile"
+  role = aws_iam_role.ecs_ec2_role.name
+}
+
+# EC2 IAM Role
+resource "aws_iam_role" "ecs_ec2_role" {
+  name = "ecs_ec2_role"
+  assume_role_policy = data.aws_iam_policy_document.ecs_ec2_assume_role_policy.json
+}
+
+data "aws_iam_policy_document" "ecs_ec2_assume_role_policy" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["ec2.amazonaws.com"]
+    }
+  }
+}
+
+# AmazonEC2ContainerServiceforEC2Roleポリシー
+data "aws_iam_policy" "ecs_ec2_role_policy" {
+  arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
+}
+
+# AmazonEC2ContainerServiceforEC2RoleポリシーをEC2用Roleにアタッチ
+resource "aws_iam_role_policy_attachment" "ecs_ec2_role_policy_attachment" {
+  role       = aws_iam_role.ecs_ec2_role.name
+  policy_arn = data.aws_iam_policy.ecs_ec2_role_policy.arn
+}
+
+
+#################################################
+# CloudWatch Logs
+#################################################
+resource "aws_cloudwatch_log_group" "cwlog" {
+  name = "/ecs/app"
+  retention_in_days = 30
 }
