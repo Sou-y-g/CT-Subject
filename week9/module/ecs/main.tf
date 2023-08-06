@@ -79,8 +79,8 @@ resource "aws_ecs_task_definition" "task_definition" {
   container_definitions = jsonencode([
     {
       "name" : "${var.tag}-task-definitions",
-      #"image": "194641379830.dkr.ecr.ap-northeast-1.amazonaws.com/nginx:latest",
-      "image": "nginx",
+      "image": "194641379830.dkr.ecr.ap-northeast-1.amazonaws.com/nginx:latest",
+      #"image": "nginx",
       "essential" : true,
       "logConfiguration": {
         "logDriver": "awslogs",
@@ -108,8 +108,6 @@ resource "aws_ecs_service" "nginx" {
   task_definition = aws_ecs_task_definition.task_definition.arn
   desired_count   = 1
   launch_type     = "EC2"
-  deployment_minimum_healthy_percent = 50
-
 }
 
 # ホストインスタンス
@@ -132,20 +130,4 @@ resource "aws_instance" "ecs_instance" {
   }
 
   depends_on = [aws_ecs_service.nginx]
-}
-
-#################################################
-# ECR
-#################################################
-# ECR作成
-resource "aws_ecr_repository" "ecr" {
-  name = "nginx"
-
-  image_scanning_configuration {
-    scan_on_push = true
-  }
-
-  tags = {
-    Name = "${var.tag}-ecr"
-  }
 }

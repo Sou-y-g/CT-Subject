@@ -21,6 +21,12 @@ module "ecs" {
   all_cidr = var.all_cidr
 }
 
+module "ecr" {
+  source = "./module/ecr"
+
+  tag          = var.tag
+}
+
 module "iam" {
   source = "./module/iam"
 }
