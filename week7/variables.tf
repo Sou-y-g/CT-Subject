@@ -6,6 +6,6 @@ variable "region" {
 
 variable "tag" {
   description = "Prefix for the tags"
-  default     = "ct7-1"
+  default     = "ct7"
 }
 
